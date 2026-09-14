@@ -1,5 +1,23 @@
 [
   {
+    "id": "act-1789407304614-3hb6",
+    "timestamp": 1789407304614,
+    "type": "LOGIN",
+    "email": "ivygupta06@gmail.com",
+    "userName": "ivygupta06@gmail.com",
+    "browser": "Edge",
+    "details": "Logged in from Edge"
+  },
+  {
+    "id": "act-1789407250777-ojno",
+    "timestamp": 1789407250777,
+    "type": "REGISTER",
+    "email": "mauryasaumya1011@gmail.com",
+    "userName": "saumya",
+    "browser": "Edge",
+    "details": "Account registered with romantic style"
+  },
+  {
     "id": "act-1789388567417-tc15",
     "timestamp": 1789388567417,
     "type": "LOGIN",

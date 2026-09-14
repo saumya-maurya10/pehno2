@@ -51,6 +51,15 @@ export async function extractImageColors(imageSrc: string, sampleCount: number =
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
+        // Ignore bright, low-saturation backgrounds when averaging fabric
+        // colour. Without this, a purple garment photographed on white can
+        // be averaged into a desaturated grey.
+        const isFabricColorPixel = (r: number, g: number, b: number) => {
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          return max < 245 && (max - min >= 18 || max < 90);
+        };
+
         // Sample regions (center, upper, lower)
         const samples: { r: number; g: number; b: number }[] = [];
         
@@ -59,10 +68,15 @@ export async function extractImageColors(imageSrc: string, sampleCount: number =
         for (let y = 15; y < 45; y += 3) {
           for (let x = 30; x < 70; x += 3) {
             const idx = (y * width + x) * 4;
-            rSum += data[idx];
-            gSum += data[idx + 1];
-            bSum += data[idx + 2];
-            count++;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            if (isFabricColorPixel(r, g, b)) {
+              rSum += r;
+              gSum += g;
+              bSum += b;
+              count++;
+            }
           }
         }
         if (count > 0) samples.push({ r: Math.round(rSum / count), g: Math.round(gSum / count), b: Math.round(bSum / count) });
@@ -72,10 +86,15 @@ export async function extractImageColors(imageSrc: string, sampleCount: number =
         for (let y = 55; y < 85; y += 3) {
           for (let x = 30; x < 70; x += 3) {
             const idx = (y * width + x) * 4;
-            rSum += data[idx];
-            gSum += data[idx + 1];
-            bSum += data[idx + 2];
-            count++;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            if (isFabricColorPixel(r, g, b)) {
+              rSum += r;
+              gSum += g;
+              bSum += b;
+              count++;
+            }
           }
         }
         if (count > 0) samples.push({ r: Math.round(rSum / count), g: Math.round(gSum / count), b: Math.round(bSum / count) });
@@ -273,6 +292,7 @@ async function analyzeImageSilhouetteAndRegions(
   isDress: boolean;
   isBottoms: boolean;
   isWide: boolean;
+  isPeplum: boolean;
   hasLowerRegionGarment: boolean;
   hasAccessoryRegionGarment: boolean;
   dominantColor: { hex: string; name: string; tone: ColorTone };
@@ -293,6 +313,7 @@ async function analyzeImageSilhouetteAndRegions(
             isDress: false,
             isBottoms: false,
             isWide: false,
+            isPeplum: false,
             hasLowerRegionGarment: false,
             hasAccessoryRegionGarment: false,
             dominantColor: { hex: '#FAF9F6', name: 'Crisp White', tone: 'neutral' },
@@ -353,6 +374,9 @@ async function analyzeImageSilhouetteAndRegions(
         const isDress = (botW > topW * 1.22 && botW > 25) || (topW > 15 && midW > 20 && botW > 30);
         const isBottoms = topW < 12 && botW > 20;
         const isWide = img.width / img.height > 1.3;
+        // A peplum top narrows at the waist and flares below it, but does not
+        // have the full vertical coverage of a dress.
+        const isPeplum = !isDress && midW > 10 && botW > midW * 1.18 && botW > 25;
 
         // Count garment pixels in lower region (y: 50% to 90%)
         let lowerGarmentCount = 0;
@@ -409,6 +433,7 @@ async function analyzeImageSilhouetteAndRegions(
           isDress,
           isBottoms,
           isWide,
+          isPeplum,
           // Only true if there are distinct non-background pixels in lower half that are separate from a single dress
           hasLowerRegionGarment: lowerRatio > 0.22 && !isDress,
           hasAccessoryRegionGarment: sideRatio > 0.30,
@@ -416,9 +441,10 @@ async function analyzeImageSilhouetteAndRegions(
         });
       } catch (e) {
         resolve({
-          isDress: false,
-          isBottoms: false,
-          isWide: false,
+            isDress: false,
+            isBottoms: false,
+            isWide: false,
+            isPeplum: false,
           hasLowerRegionGarment: false,
           hasAccessoryRegionGarment: false,
           dominantColor: { hex: '#FAF9F6', name: 'Crisp White', tone: 'neutral' },
@@ -427,9 +453,10 @@ async function analyzeImageSilhouetteAndRegions(
     };
     img.onerror = () => {
       resolve({
-        isDress: false,
-        isBottoms: false,
-        isWide: false,
+          isDress: false,
+          isBottoms: false,
+          isWide: false,
+          isPeplum: false,
         hasLowerRegionGarment: false,
         hasAccessoryRegionGarment: false,
         dominantColor: { hex: '#FAF9F6', name: 'Crisp White', tone: 'neutral' },
@@ -456,8 +483,8 @@ export async function analyzeImageLocally(
 
   if (mode === 'single') {
     let category: GarmentCategory = 'tops';
-    let subcategory: GarmentSubcategory = 'knit-sweater';
-    let rawItemName = 'Knit Top';
+    let subcategory: GarmentSubcategory = 't-shirt';
+    let rawItemName = 'Top';
 
     // 1. Check for Dresses (flaring skirt, one-piece silhouette, or vertical coverage)
     if (analysis.isDress) {
@@ -474,13 +501,18 @@ export async function analyzeImageLocally(
       category = 'shoes';
       subcategory = 'sneakers';
       rawItemName = 'Sneakers';
-    } else {
-      // Canvas color analysis cannot identify a fabric weave or construction.
-      // Keep its fallback deliberately neutral instead of inventing "net" or
-      // "layered" based solely on black or brown pixels.
+    } else if (analysis.isPeplum) {
       category = 'tops';
-      subcategory = 'knit-sweater';
-      rawItemName = 'Knit Top';
+      // "peplum" is not a stored subcategory yet; retain a valid top type
+      // while presenting the useful silhouette name to the user.
+      subcategory = 't-shirt';
+      rawItemName = 'Peplum Top';
+    } else {
+      // Canvas analysis cannot reliably infer a fabric weave. Do not claim
+      // every upload is knitwear; use a neutral top label when unsure.
+      category = 'tops';
+      subcategory = 't-shirt';
+      rawItemName = 'Top';
     }
 
     const namePrefix = formatGarmentName(rawItemName, primaryColor.name, category, subcategory);

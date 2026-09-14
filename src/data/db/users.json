@@ -17,7 +17,7 @@
     "avatarColor": "#FEF08A",
     "persona": "romantic",
     "createdAt": 1789315600000,
-    "lastLoginAt": 1789388567416
+    "lastLoginAt": 1789407304613
   },
   {
     "id": "931f26f0-73b1-413b-a21b-3ba3b3856f8e",
@@ -40,5 +40,16 @@
     "role": "user",
     "createdAt": 1789367184897,
     "lastLoginAt": 1789367184897
+  },
+  {
+    "id": "49b0b449-328b-45db-8e12-fab2fd81fa15",
+    "name": "saumya",
+    "email": "mauryasaumya1011@gmail.com",
+    "passwordHash": "scrypt$dc9e146e5887e4feccfa873bf8105f84$a41b41c27f0ce3ff73065e47e8bb5dd68b4a6c3418c5b9125fe4ac6f96731703a1d264dad6fe0897967c057d9ee8c145bcf71837bf6626c9b8fd73e5371d1e2f",
+    "avatarColor": "#BAE6FD",
+    "persona": "romantic",
+    "role": "user",
+    "createdAt": 1789407250775,
+    "lastLoginAt": 1789407250775
   }
 ]

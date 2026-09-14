@@ -403,19 +403,35 @@ export const ColorWheelView: React.FC<ColorWheelViewProps> = ({
     // demo wardrobe here can make a colour appear available when it is not.
     const activeWardrobe = wardrobe;
 
-    // Filter items matching the segment keywords or hex/tone
+    // A colour is available only when a wearable clothing piece matches it.
+    // Matching bags/accessories alone previously produced an outfit made from
+    // unrelated colours, because the colour item was not visibly featured.
     const matches = activeWardrobe.filter((item) => {
       const nameLower = (item.name || '').toLowerCase();
       const colorLower = (item.colorName || '').toLowerCase();
       const tags = (item.tags || []).map((t) => t.toLowerCase());
 
-      return segment.matchingKeywords.some(
-        (kw) => nameLower.includes(kw) || colorLower.includes(kw) || tags.some((t) => t.includes(kw))
-      );
+      // Match the landed colour and its deliberately defined fashion shades,
+      // using whole words so "tiered" can never be mistaken for "red".
+      const hasColorWord = (text: string, color: string) =>
+        text.toLowerCase().split(/[^a-z]+/).includes(color);
+      const matchesColorFamily = (text: string) =>
+        segment.matchingKeywords.some((color) => hasColorWord(text, color));
+      const isColorMatch =
+        matchesColorFamily(nameLower) ||
+        matchesColorFamily(colorLower) ||
+        tags.some(matchesColorFamily);
+
+      return isColorMatch;
     });
 
     setMatchingItems(matches);
     setShoppingOptions(COLOR_SHOPPING_RECOMMENDATIONS[segment.name] || []);
+
+    // Spin Wheel is a colour finder, not an outfit builder. The matching-items
+    // panel below intentionally shows only items in the landed colour.
+    setGeneratedOutfit(null);
+    return;
 
     // IF user HAS garments in this color in their closet:
     if (matches.length > 0) {
